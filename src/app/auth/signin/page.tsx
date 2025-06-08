@@ -37,7 +37,6 @@ function SignInForm() {
       const result = await signIn("credentials", {
         email,
         password,
-        callbackUrl,
         redirect: false,
       });
 
@@ -52,14 +51,9 @@ function SignInForm() {
         toast.success("Welcome to FacetAI!", {
           description: "You have been successfully signed in.",
         });
-        // Let NextAuth handle the redirect
-        if (result.url) {
-          console.log("Redirecting to NextAuth URL:", result.url);
-          window.location.href = result.url;
-        } else {
-          console.log("No redirect URL, manually redirecting to:", callbackUrl);
-          router.push(callbackUrl);
-        }
+        // For credentials provider, manually redirect after successful login
+        console.log("Successful login, redirecting to:", callbackUrl);
+        router.push(callbackUrl);
       }
     } catch (error) {
       console.error("Sign in error:", error);
