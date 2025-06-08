@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { signIn, getSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,28 +15,36 @@ export default function SignIn() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
 
   useEffect(() => {
     // Check if user is already signed in
     getSession().then((session) => {
       if (session) {
-        router.push("/");
+        console.log("User already signed in, redirecting to:", callbackUrl);
+        router.push(callbackUrl);
       }
     });
-  }, [router]);
+  }, [router, callbackUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      console.log("Attempting sign-in with callbackUrl:", callbackUrl);
       const result = await signIn("credentials", {
         email,
         password,
+        callbackUrl,
         redirect: false,
       });
 
+      console.log("Sign-in result:", result);
+
       if (result?.error) {
+        console.error("Sign-in error:", result.error);
         toast.error("Invalid credentials", {
           description: "Please check your email and password.",
         });
@@ -44,8 +52,14 @@ export default function SignIn() {
         toast.success("Welcome to FacetAI!", {
           description: "You have been successfully signed in.",
         });
-        router.push("/");
-        router.refresh();
+        // Let NextAuth handle the redirect
+        if (result.url) {
+          console.log("Redirecting to NextAuth URL:", result.url);
+          window.location.href = result.url;
+        } else {
+          console.log("No redirect URL, manually redirecting to:", callbackUrl);
+          router.push(callbackUrl);
+        }
       }
     } catch (error) {
       console.error("Sign in error:", error);

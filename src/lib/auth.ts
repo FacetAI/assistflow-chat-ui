@@ -98,22 +98,34 @@ export const authOptions = {
   trustHost: true,
   callbacks: {
     async jwt({ token, user }: any) {
+      console.log("JWT callback - user:", user ? "present" : "absent", "token.email:", token.email);
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
         token.accessToken = user.accessToken;
+        console.log("JWT callback - updated token with user data");
       }
       return token;
     },
     async session({ session, token }: any) {
+      console.log("Session callback - token.email:", token.email, "session.user.email:", session.user?.email);
       if (token) {
         session.user.id = token.id;
         session.user.email = token.email;
         session.user.name = token.name;
         session.accessToken = token.accessToken;
+        console.log("Session callback - updated session with token data");
       }
       return session;
+    },
+    async redirect({ url, baseUrl }: any) {
+      console.log("Redirect callback - url:", url, "baseUrl:", baseUrl);
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Allows callback URLs on the same origin
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
