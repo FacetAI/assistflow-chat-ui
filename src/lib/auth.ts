@@ -18,6 +18,7 @@ function generateSecretHash(username: string): string {
   return hash.digest("base64");
 }
 
+
 export const authOptions = {
   providers: [
     CredentialsProvider({
@@ -84,6 +85,20 @@ export const authOptions = {
           };
         } catch (error) {
           console.error("Cognito authentication error:", error);
+          
+          // Handle specific Cognito errors
+          if (error instanceof Error) {
+            if (error.name === "NotAuthorizedException") {
+              console.error("Invalid credentials provided");
+            } else if (error.name === "UserNotFoundException") {
+              console.error("User not found");
+            } else if (error.name === "UserNotConfirmedException") {
+              console.error("User email not confirmed");
+            } else if (error.name === "TooManyRequestsException") {
+              console.error("Too many login attempts");
+            }
+          }
+          
           return null;
         }
       },
@@ -95,7 +110,8 @@ export const authOptions = {
   pages: {
     signIn: "/auth/signin",
   },
-  trustHost: true,
+  debug: process.env.NODE_ENV === "development",
+  useSecureCookies: process.env.NODE_ENV === "production",
   callbacks: {
     async jwt({ token, user }: any) {
       console.log("JWT callback - user:", user ? "present" : "absent", "token.email:", token.email);

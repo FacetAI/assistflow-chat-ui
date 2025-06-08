@@ -18,15 +18,6 @@ function SignInForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
 
-  useEffect(() => {
-    // Check if user is already signed in
-    getSession().then((session) => {
-      if (session) {
-        console.log("User already signed in, redirecting to:", callbackUrl);
-        router.push(callbackUrl);
-      }
-    });
-  }, [router, callbackUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,9 +26,10 @@ function SignInForm() {
     try {
       console.log("Attempting sign-in with callbackUrl:", callbackUrl);
       const result = await signIn("credentials", {
-        email,
-        password,
+        email: email,
+        password: password,
         redirect: false,
+        callbackUrl: undefined,
       });
 
       console.log("Sign-in result:", result);
