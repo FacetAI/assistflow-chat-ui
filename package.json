@@ -19,7 +19,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@auth/core": "^0.39.1",
+    "@auth/core": "0.34.2",
     "@aws-sdk/client-cognito-identity-provider": "^3.817.0",
     "@langchain/core": "^0.3.44",
     "@langchain/langgraph": "^0.2.63",
