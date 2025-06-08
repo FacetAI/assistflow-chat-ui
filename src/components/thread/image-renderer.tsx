@@ -43,18 +43,40 @@ export function ImageRenderer({
   src,
   alt,
   className,
+  contentBlock,
 }: {
   src: string;
   alt?: string;
   className?: string;
+  contentBlock?: any;
 }) {
   const [imageError, setImageError] = useState(false);
+
+  // Handle different source types
+  const getImageSrc = () => {
+    if (src.startsWith('blob:') || src.startsWith('http')) {
+      // Object URL or external URL
+      return src;
+    } else if (src.startsWith('data:image/')) {
+      // Already a data URL
+      return src;
+    } else {
+      // Assume it's base64 data, construct data URL
+      const mimeType = contentBlock?.mime_type || 'image/jpeg';
+      return `data:${mimeType};base64,${src}`;
+    }
+  };
 
   if (imageError) {
     return (
       <div className="my-4 max-w-md rounded-lg border border-gray-200 bg-gray-100 p-4">
         <p className="text-sm text-gray-600">Failed to load image</p>
-        <p className="mt-1 text-xs break-all text-gray-400">{src}</p>
+        <p className="mt-1 text-xs break-all text-gray-400">{src.substring(0, 100)}...</p>
+        {contentBlock?.metadata?.size && (
+          <p className="mt-1 text-xs text-gray-400">
+            Size: {(contentBlock.metadata.size / 1024 / 1024).toFixed(1)}MB
+          </p>
+        )}
       </div>
     );
   }
@@ -62,12 +84,17 @@ export function ImageRenderer({
   return (
     <div className={`my-4 ${className || ""}`}>
       <img
-        src={src}
+        src={getImageSrc()}
         alt={alt || "Generated image"}
         className="max-h-96 max-w-full rounded-lg border border-gray-200 shadow-sm"
         onError={() => setImageError(true)}
         loading="lazy"
       />
+      {contentBlock?.metadata?.size && (
+        <p className="mt-2 text-xs text-gray-500">
+          {contentBlock.metadata.name} ({(contentBlock.metadata.size / 1024 / 1024).toFixed(1)}MB)
+        </p>
+      )}
     </div>
   );
 }

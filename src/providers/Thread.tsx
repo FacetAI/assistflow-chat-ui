@@ -15,10 +15,12 @@ import { createClient } from "./client";
 
 interface ThreadContextType {
   getThreads: () => Promise<Thread[]>;
+  loadMoreThreads: () => Promise<void>;
   threads: Thread[];
   setThreads: Dispatch<SetStateAction<Thread[]>>;
   threadsLoading: boolean;
   setThreadsLoading: Dispatch<SetStateAction<boolean>>;
+  hasMoreThreads: boolean;
 }
 
 const ThreadContext = createContext<ThreadContextType | undefined>(undefined);
@@ -39,6 +41,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(false);
+  const [hasMoreThreads, setHasMoreThreads] = useState(true);
   const { data: session } = useSession();
 
   // Extract userId to fix dependency array warning
@@ -52,12 +55,13 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
     try {
       const threads = await client.threads.search({
         metadata: { user_id: userId },
-        limit: 20,
+        limit: 10, // Reduced limit to avoid large payloads
         offset: 0,
         sortBy: "updated_at",
         sortOrder: "desc",
       });
 
+      setHasMoreThreads(threads.length === 10);
       return threads;
     } catch (error) {
       console.error("Error fetching threads:", error);
@@ -65,12 +69,35 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
     }
   }, [apiUrl, assistantId, userId]);
 
+  const loadMoreThreads = useCallback(async (): Promise<void> => {
+    if (!apiUrl || !assistantId || !userId || !hasMoreThreads) return;
+
+    const client = createClient(apiUrl, getApiKey() ?? undefined, userId);
+
+    try {
+      const moreThreads = await client.threads.search({
+        metadata: { user_id: userId },
+        limit: 10,
+        offset: threads.length,
+        sortBy: "updated_at",
+        sortOrder: "desc",
+      });
+
+      setThreads(prev => [...prev, ...moreThreads]);
+      setHasMoreThreads(moreThreads.length === 10);
+    } catch (error) {
+      console.error("Error loading more threads:", error);
+    }
+  }, [apiUrl, assistantId, userId, hasMoreThreads, threads.length]);
+
   const value = {
     getThreads,
+    loadMoreThreads,
     threads,
     setThreads,
     threadsLoading,
     setThreadsLoading,
+    hasMoreThreads,
   };
 
   return (

@@ -19,9 +19,13 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 function ThreadList({
   threads,
   onThreadClick,
+  hasMoreThreads,
+  onLoadMore,
 }: {
   threads: Thread[];
   onThreadClick?: (threadId: string) => void;
+  hasMoreThreads?: boolean;
+  onLoadMore?: () => void;
 }) {
   const [threadId, setThreadId] = useQueryState("threadId");
 
@@ -62,6 +66,17 @@ function ThreadList({
           </div>
         );
       })}
+      {hasMoreThreads && (
+        <div className="w-full px-1">
+          <Button
+            variant="outline"
+            className="w-[280px]"
+            onClick={onLoadMore}
+          >
+            Load More
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -87,7 +102,7 @@ export default function ThreadHistory() {
     parseAsBoolean.withDefault(false),
   );
 
-  const { getThreads, threads, setThreads, threadsLoading, setThreadsLoading } =
+  const { getThreads, loadMoreThreads, threads, setThreads, threadsLoading, setThreadsLoading, hasMoreThreads } =
     useThreads();
 
   useEffect(() => {
@@ -135,7 +150,11 @@ export default function ThreadHistory() {
         {threadsLoading ? (
           <ThreadHistoryLoading />
         ) : (
-          <ThreadList threads={threads} />
+          <ThreadList 
+            threads={threads} 
+            hasMoreThreads={hasMoreThreads}
+            onLoadMore={loadMoreThreads}
+          />
         )}
       </div>
       <div className="lg:hidden">
@@ -155,6 +174,8 @@ export default function ThreadHistory() {
             </SheetHeader>
             <ThreadList
               threads={threads}
+              hasMoreThreads={hasMoreThreads}
+              onLoadMore={loadMoreThreads}
               onThreadClick={() => setChatHistoryOpen((o) => !o)}
             />
           </SheetContent>

@@ -4,6 +4,7 @@ import type { Base64ContentBlock } from "@langchain/core/messages";
 import {
   fileToContentBlock,
   SUPPORTED_IMAGE_TYPES,
+  cleanupObjectUrls,
 } from "@/lib/multimodal-utils";
 
 interface UseFileUploadOptions {
@@ -156,10 +157,25 @@ export function useFileUpload({
   }, [processFiles]);
 
   const removeBlock = (idx: number) => {
-    setContentBlocks((prev) => prev.filter((_, i) => i !== idx));
+    setContentBlocks((prev) => {
+      const blockToRemove = prev[idx];
+      // Clean up object URL if it exists
+      if (blockToRemove?.source_type === "url" && 
+          blockToRemove.metadata?.isObjectUrl && 
+          blockToRemove.data.startsWith('blob:')) {
+        URL.revokeObjectURL(blockToRemove.data);
+      }
+      return prev.filter((_, i) => i !== idx);
+    });
   };
 
-  const resetBlocks = () => setContentBlocks([]);
+  const resetBlocks = () => {
+    setContentBlocks((prev) => {
+      // Clean up all object URLs before resetting
+      cleanupObjectUrls(prev);
+      return [];
+    });
+  };
 
   /**
    * Handle paste event for files (images, PDFs)
