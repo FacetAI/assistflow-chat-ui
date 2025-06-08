@@ -7,6 +7,9 @@ frontend:
         - pnpm install --frozen-lockfile
     build:
       commands:
+        # Write LangGraph environment variables to .env.production for API routes
+        - echo "LANGGRAPH_API_URL=$LANGGRAPH_API_URL" >> .env.production
+        - echo "LANGSMITH_API_KEY=$LANGSMITH_API_KEY" >> .env.production
         - pnpm run build
   artifacts:
     baseDirectory: .next
