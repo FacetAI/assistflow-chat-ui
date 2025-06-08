@@ -40,3 +40,6 @@ env:
     PNPM_CACHE_FOLDER: .pnpm-store
     # Skip telemetry for faster builds
     NEXT_TELEMETRY_DISABLED: 1
+    # Ensure environment variables are available during build
+    LANGGRAPH_API_URL: $LANGGRAPH_API_URL
+    LANGSMITH_API_KEY: $LANGSMITH_API_KEY
