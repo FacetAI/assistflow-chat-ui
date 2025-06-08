@@ -5,14 +5,6 @@ const nextConfig = {
       bodySizeLimit: "10mb",
     },
   },
-  async rewrites() {
-    return [
-      {
-        source: '/api/langgraph/:path*',
-        destination: `${process.env.LANGGRAPH_API_URL}/:path*`,
-      },
-    ];
-  },
   async headers() {
     return [
       {
