@@ -3,8 +3,10 @@ import { File, X as XIcon } from "lucide-react";
 import type { Base64ContentBlock } from "@langchain/core/messages";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import type { ExtendedContentBlock } from "@/lib/multimodal-utils";
+
 export interface MultimodalPreviewProps {
-  block: Base64ContentBlock;
+  block: ExtendedContentBlock;
   removable?: boolean;
   onRemove?: () => void;
   className?: string;
@@ -18,14 +20,18 @@ export const MultimodalPreview: React.FC<MultimodalPreviewProps> = ({
   className,
   size = "md",
 }) => {
-  // Image block - following LangGraph best practices
+  // Image block - supporting both base64 and URL sources
   if (
     block.type === "image" &&
-    block.source_type === "base64" &&
+    (block.source_type === "base64" || block.source_type === "url") &&
     typeof block.mime_type === "string" &&
     block.mime_type.startsWith("image/")
   ) {
-    const url = `data:${block.mime_type};base64,${block.data}`;
+    // Get the image URL based on source type
+    const url = block.source_type === "base64" 
+      ? `data:${block.mime_type};base64,${block.data}`
+      : block.data; // For URL source type, data contains the URL
+
     let imgClass: string = "rounded-md object-cover h-16 w-16 text-lg";
     if (size === "sm") imgClass = "rounded-md object-cover h-10 w-10 text-base";
     if (size === "lg") imgClass = "rounded-md object-cover h-24 w-24 text-xl";

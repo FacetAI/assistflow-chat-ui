@@ -5,22 +5,23 @@ import {
   fileToContentBlock,
   SUPPORTED_IMAGE_TYPES,
   cleanupObjectUrls,
+  type ExtendedContentBlock,
 } from "@/lib/multimodal-utils";
 
 interface UseFileUploadOptions {
-  initialBlocks?: Base64ContentBlock[];
+  initialBlocks?: ExtendedContentBlock[];
 }
 
 export function useFileUpload({
   initialBlocks = [],
 }: UseFileUploadOptions = {}) {
   const [contentBlocks, setContentBlocks] =
-    useState<Base64ContentBlock[]>(initialBlocks);
+    useState<ExtendedContentBlock[]>(initialBlocks);
   const dropRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const dragCounter = useRef(0);
 
-  const isDuplicate = (file: File, blocks: Base64ContentBlock[]) => {
+  const isDuplicate = (file: File, blocks: ExtendedContentBlock[]) => {
     if (SUPPORTED_IMAGE_TYPES.includes(file.type as any)) {
       return blocks.some(
         (b) =>

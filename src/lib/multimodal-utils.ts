@@ -1,6 +1,17 @@
 import type { Base64ContentBlock } from "@langchain/core/messages";
 import { toast } from "sonner";
 
+// Extended content block type that supports both base64 and URL sources
+export interface ExtendedContentBlock extends Omit<Base64ContentBlock, 'source_type'> {
+  source_type: "base64" | "url";
+  metadata?: {
+    name?: string;
+    size?: number;
+    lastModified?: number;
+    isObjectUrl?: boolean;
+  };
+}
+
 // Image types supported by LangGraph platforms
 export const SUPPORTED_IMAGE_TYPES = [
   "image/jpeg",
@@ -9,15 +20,15 @@ export const SUPPORTED_IMAGE_TYPES = [
   "image/webp",
 ] as const;
 
-// Maximum file size for direct embedding (1MB)
-const MAX_EMBEDDED_SIZE = 1 * 1024 * 1024;
-// Maximum file size for images (50MB)
-const MAX_IMAGE_SIZE = 50 * 1024 * 1024;
+// Maximum file size for direct embedding (512KB - very conservative)
+const MAX_EMBEDDED_SIZE = 512 * 1024;
+// Maximum file size for images (10MB - AWS API Gateway safe limit)
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
 // Returns a Promise of a typed multimodal block following LangGraph best practices
 export async function fileToContentBlock(
   file: File,
-): Promise<Base64ContentBlock> {
+): Promise<ExtendedContentBlock> {
   // Validate file type
   if (!SUPPORTED_IMAGE_TYPES.includes(file.type as any)) {
     toast.error(
@@ -29,12 +40,12 @@ export async function fileToContentBlock(
   // Validate file size
   if (file.size > MAX_IMAGE_SIZE) {
     toast.error(
-      `Image too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum size is 50MB.`,
+      `Image too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum size is 10MB.`,
     );
     return Promise.reject(new Error(`Image too large: ${file.size} bytes`));
   }
 
-  // For small files, embed as base64. For large files, create object URL
+  // For very small files, embed as base64. For larger files, use object URL to avoid payload limits
   if (file.size <= MAX_EMBEDDED_SIZE) {
     const data = await fileToBase64(file);
     
@@ -85,7 +96,7 @@ export async function fileToBase64(file: File): Promise<string> {
 // Type guard for ContentBlock (images - both base64 and URL)
 export function isImageContentBlock(
   block: unknown,
-): block is Base64ContentBlock {
+): block is ExtendedContentBlock {
   if (typeof block !== "object" || block === null || !("type" in block))
     return false;
 
@@ -112,7 +123,7 @@ export function isBase64ContentBlock(
 }
 
 // Cleanup function for object URLs to prevent memory leaks
-export function cleanupObjectUrls(contentBlocks: Base64ContentBlock[]) {
+export function cleanupObjectUrls(contentBlocks: ExtendedContentBlock[]) {
   contentBlocks.forEach(block => {
     if (block.source_type === "url" && 
         block.metadata?.isObjectUrl && 

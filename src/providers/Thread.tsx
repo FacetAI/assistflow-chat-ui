@@ -55,15 +55,33 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
     try {
       const threads = await client.threads.search({
         metadata: { user_id: userId },
-        limit: 10, // Reduced limit to avoid large payloads
+        limit: 5, // Small chunks to avoid payload limits
         offset: 0,
         sortBy: "updated_at",
         sortOrder: "desc",
       });
 
-      setHasMoreThreads(threads.length === 10);
+      setHasMoreThreads(threads.length === 5);
       return threads;
     } catch (error) {
+      // Check if it's a payload size error and reduce further if needed
+      if (error instanceof Error && (error.message.includes('413') || error.message.includes('too large'))) {
+        console.warn("Payload too large, retrying with smaller limit");
+        try {
+          const smallerThreads = await client.threads.search({
+            metadata: { user_id: userId },
+            limit: 2, // Even smaller if we hit limits
+            offset: 0,
+            sortBy: "updated_at",
+            sortOrder: "desc",
+          });
+          setHasMoreThreads(smallerThreads.length === 2);
+          return smallerThreads;
+        } catch (retryError) {
+          console.error("Error fetching threads even with reduced limit:", retryError);
+          return [];
+        }
+      }
       console.error("Error fetching threads:", error);
       return [];
     }
@@ -77,14 +95,14 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
     try {
       const moreThreads = await client.threads.search({
         metadata: { user_id: userId },
-        limit: 10,
+        limit: 5, // Small chunks to stay under limits
         offset: threads.length,
         sortBy: "updated_at",
         sortOrder: "desc",
       });
 
       setThreads(prev => [...prev, ...moreThreads]);
-      setHasMoreThreads(moreThreads.length === 10);
+      setHasMoreThreads(moreThreads.length === 5);
     } catch (error) {
       console.error("Error loading more threads:", error);
     }
