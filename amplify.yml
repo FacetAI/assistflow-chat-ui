@@ -7,9 +7,12 @@ frontend:
         - pnpm install --frozen-lockfile
     build:
       commands:
-        # Write environment variables to .env.production for API routes and NextAuth
+        # Create .env.production file for SSR and API routes
+        - echo "# Environment variables for SSR and API routes" > .env.production
         - echo "LANGGRAPH_API_URL=$LANGGRAPH_API_URL" >> .env.production
         - echo "LANGSMITH_API_KEY=$LANGSMITH_API_KEY" >> .env.production
+        - echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL" >> .env.production
+        - echo "NEXT_PUBLIC_ASSISTANT_ID=$NEXT_PUBLIC_ASSISTANT_ID" >> .env.production
         - echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" >> .env.production
         - echo "NEXTAUTH_URL=$NEXTAUTH_URL" >> .env.production
         - echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> .env.production
