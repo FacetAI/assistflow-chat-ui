@@ -70,6 +70,16 @@ function SignInForm() {
           <p className="text-muted-foreground">
             Access your intelligent chat interface
           </p>
+          {process.env.NEXT_PUBLIC_LOCAL_DEV_MODE === "true" && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-yellow-800 text-sm font-medium">
+                🔧 Local Development Mode
+              </p>
+              <p className="text-yellow-700 text-xs mt-1">
+                Any email/password will work for authentication
+              </p>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <form
@@ -111,7 +121,10 @@ function SignInForm() {
           </form>
 
           <div className="text-muted-foreground mt-6 text-center text-sm">
-            Secure authentication powered by Amazon Cognito
+            {process.env.NEXT_PUBLIC_LOCAL_DEV_MODE === "true" 
+              ? "Local Development Mode - Authentication Bypassed"
+              : "Secure authentication powered by Amazon Cognito"
+            }
           </div>
         </CardContent>
       </Card>

@@ -111,6 +111,28 @@ const StreamSession = ({
         });
       }
     },
+    onError: (error: unknown) => {
+      console.error("Stream error:", error);
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage.includes("413") || errorMessage.includes("Content Too Large")) {
+        toast.error("Image too large", {
+          description: "Please try uploading a smaller image or reduce the image quality.",
+          duration: 5000,
+        });
+      } else if (errorMessage.includes("timeout") || errorMessage.includes("abort")) {
+        toast.error("Connection timeout", {
+          description: "The request took too long. Please try again.",
+          duration: 5000,
+        });
+      } else {
+        toast.error("Connection error", {
+          description: "Failed to connect to FacetAI. Please check your connection and try again.",
+          duration: 5000,
+        });
+      }
+    },
     onThreadId: async (id) => {
       setThreadId(id);
 

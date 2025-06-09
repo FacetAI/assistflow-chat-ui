@@ -93,6 +93,7 @@ export function Thread() {
     parseAsBoolean.withDefault(false),
   );
   const [input, setInput] = useState("");
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
   const {
     contentBlocks,
     setContentBlocks,
@@ -162,19 +163,87 @@ export function Thread() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if ((input.trim().length === 0 && contentBlocks.length === 0) || isLoading)
+    if ((input.trim().length === 0 && contentBlocks.length === 0) || isLoading || isProcessingImages)
       return;
     setFirstTokenReceived(false);
 
-    // Convert any object URLs to base64 before sending to API
-    const convertedContentBlocks = await convertObjectUrlsToBase64(contentBlocks);
+    // Show processing state if we have large images to process
+    const hasLargeImages = contentBlocks.some(block => 
+      block.source_type === "url" && block.metadata?.isObjectUrl
+    );
+    
+    if (hasLargeImages) {
+      setIsProcessingImages(true);
+    }
+
+    try {
+      // Handle large images by converting object URLs to base64 with compression
+      const processedContentBlocks = await Promise.all(
+      contentBlocks.map(async (block) => {
+        if (block.source_type === "url" && block.metadata?.isObjectUrl) {
+          try {
+            // Convert object URL to base64 with size optimization
+            const response = await fetch(block.data);
+            const blob = await response.blob();
+            
+            // Create a canvas to resize large images
+            const img = new Image();
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d')!;
+            
+            return new Promise<typeof block>((resolve) => {
+              img.onload = () => {
+                // Calculate new dimensions to keep image under 2MB when base64 encoded
+                const maxDimension = 1920; // Max width or height
+                let { width, height } = img;
+                
+                if (width > maxDimension || height > maxDimension) {
+                  if (width > height) {
+                    height = (height * maxDimension) / width;
+                    width = maxDimension;
+                  } else {
+                    width = (width * maxDimension) / height;
+                    height = maxDimension;
+                  }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Convert to base64 with quality adjustment
+                const quality = 0.8; // 80% quality to reduce size
+                const base64Data = canvas.toDataURL(block.mime_type, quality);
+                const cleanBase64 = base64Data.split(',')[1];
+                
+                resolve({
+                  ...block,
+                  source_type: "base64" as const,
+                  data: cleanBase64,
+                  metadata: {
+                    ...block.metadata,
+                    isObjectUrl: false,
+                    resized: width !== img.width || height !== img.height,
+                  },
+                });
+              };
+              img.src = block.data;
+            });
+          } catch (error) {
+            console.error("Failed to process image:", error);
+            return block;
+          }
+        }
+        return block;
+      })
+    );
 
     const newHumanMessage: Message = {
       id: uuidv4(),
       type: "human",
       content: [
         ...(input.trim().length > 0 ? [{ type: "text", text: input }] : []),
-        ...convertedContentBlocks,
+        ...processedContentBlocks,
       ] as Message["content"],
     };
 
@@ -203,8 +272,16 @@ export function Thread() {
       },
     );
 
-    setInput("");
-    setContentBlocks([]);
+      setInput("");
+      setContentBlocks([]);
+    } catch (error) {
+      console.error("Failed to submit message:", error);
+      toast.error("Failed to send message", {
+        description: "There was an error processing your images. Please try again.",
+      });
+    } finally {
+      setIsProcessingImages(false);
+    }
   };
 
   const handleRegenerate = (
@@ -497,10 +574,18 @@ export function Thread() {
                               className="ml-auto shadow-md transition-all"
                               disabled={
                                 isLoading ||
+                                isProcessingImages ||
                                 (!input.trim() && contentBlocks.length === 0)
                               }
                             >
-                              Send
+                              {isProcessingImages ? (
+                                <>
+                                  <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
+                                  Processing images...
+                                </>
+                              ) : (
+                                "Send"
+                              )}
                             </Button>
                           )}
                         </div>

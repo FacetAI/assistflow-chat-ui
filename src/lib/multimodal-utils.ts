@@ -9,6 +9,7 @@ export interface ExtendedContentBlock extends Omit<Base64ContentBlock, 'source_t
     size?: number;
     lastModified?: number;
     isObjectUrl?: boolean;
+    resized?: boolean;
   };
 }
 
@@ -20,8 +21,8 @@ export const SUPPORTED_IMAGE_TYPES = [
   "image/webp",
 ] as const;
 
-// Maximum file size for direct embedding (100KB - aggressive to reduce payload)
-const MAX_EMBEDDED_SIZE = 100 * 1024;
+// Maximum file size for direct embedding (500KB - conservative to avoid 413 errors)
+const MAX_EMBEDDED_SIZE = 500 * 1024;
 // Maximum file size for images (10MB - AWS API Gateway safe limit)
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 

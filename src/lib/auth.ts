@@ -6,6 +6,9 @@ import {
 } from "@aws-sdk/client-cognito-identity-provider";
 import crypto from "crypto";
 
+// Check if we're in local development mode
+const isLocalDev = process.env.LOCAL_DEV_MODE === "true";
+
 const cognitoClient = new CognitoIdentityProviderClient({
   region: "eu-west-1",
 });
@@ -30,6 +33,19 @@ export const authOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null;
+        }
+
+        // Local development mode - bypass Cognito
+        if (isLocalDev) {
+          console.log("🔧 Local development mode: bypassing Cognito authentication");
+          
+          // Accept any credentials for local development
+          return {
+            id: process.env.LOCAL_DEV_USER_ID || "local-dev-user",
+            email: process.env.LOCAL_DEV_USER_EMAIL || credentials.email,
+            name: process.env.LOCAL_DEV_USER_NAME || "Local Developer",
+            accessToken: "local-dev-token",
+          };
         }
 
         try {

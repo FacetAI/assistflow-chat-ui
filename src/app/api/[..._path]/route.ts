@@ -9,12 +9,3 @@ export const { GET, POST, PUT, PATCH, DELETE, OPTIONS, runtime } =
     apiKey: process.env.LANGSMITH_API_KEY ?? "remove-me", // default, if not defined it will attempt to read process.env.LANGSMITH_API_KEY
     runtime: "edge", // default
   });
-
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
-    responseLimit: '50mb',
-  },
-};
