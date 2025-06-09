@@ -39,6 +39,7 @@ import {
   ArtifactTitle,
   useArtifactContext,
 } from "./artifact";
+import { convertObjectUrlsToBase64 } from "@/lib/multimodal-utils";
 
 function StickyToBottomContent(props: {
   content: ReactNode;
@@ -159,18 +160,21 @@ export function Thread() {
     prevMessageLength.current = messages.length;
   }, [messages]);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if ((input.trim().length === 0 && contentBlocks.length === 0) || isLoading)
       return;
     setFirstTokenReceived(false);
+
+    // Convert any object URLs to base64 before sending to API
+    const convertedContentBlocks = await convertObjectUrlsToBase64(contentBlocks);
 
     const newHumanMessage: Message = {
       id: uuidv4(),
       type: "human",
       content: [
         ...(input.trim().length > 0 ? [{ type: "text", text: input }] : []),
-        ...contentBlocks,
+        ...convertedContentBlocks,
       ] as Message["content"],
     };
 

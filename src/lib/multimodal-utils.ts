@@ -20,8 +20,8 @@ export const SUPPORTED_IMAGE_TYPES = [
   "image/webp",
 ] as const;
 
-// Maximum file size for direct embedding (512KB - very conservative)
-const MAX_EMBEDDED_SIZE = 512 * 1024;
+// Maximum file size for direct embedding (100KB - aggressive to reduce payload)
+const MAX_EMBEDDED_SIZE = 100 * 1024;
 // Maximum file size for images (10MB - AWS API Gateway safe limit)
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
@@ -131,4 +131,53 @@ export function cleanupObjectUrls(contentBlocks: ExtendedContentBlock[]) {
       URL.revokeObjectURL(block.data);
     }
   });
+}
+
+// Convert object URL content blocks to base64 for API submission
+export async function convertObjectUrlsToBase64(
+  contentBlocks: ExtendedContentBlock[]
+): Promise<ExtendedContentBlock[]> {
+  const convertedBlocks = await Promise.all(
+    contentBlocks.map(async (block) => {
+      // Only convert object URLs, leave base64 blocks as-is
+      if (block.source_type !== "url" || !block.metadata?.isObjectUrl || !block.data.startsWith('blob:')) {
+        return block;
+      }
+
+      try {
+        // Fetch the blob data from the object URL
+        const response = await fetch(block.data);
+        const blob = await response.blob();
+        
+        // Convert blob to base64
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            // Remove the data:...;base64, prefix
+            resolve(result.split(",")[1]);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+
+        // Return converted block
+        return {
+          ...block,
+          source_type: "base64" as const,
+          data: base64Data,
+          metadata: {
+            ...block.metadata,
+            isObjectUrl: false, // No longer an object URL
+          },
+        };
+      } catch (error) {
+        console.error("Failed to convert object URL to base64:", error);
+        // Return original block if conversion fails
+        return block;
+      }
+    })
+  );
+
+  return convertedBlocks;
 }
