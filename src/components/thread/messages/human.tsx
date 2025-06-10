@@ -98,6 +98,7 @@ export function HumanMessage({
                           key={idx}
                           block={block}
                           size="md"
+                          messageId={message.id}
                         />,
                       );
                     }

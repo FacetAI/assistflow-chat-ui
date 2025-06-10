@@ -1,34 +1,50 @@
 import { useState, useRef, useEffect, ChangeEvent, useCallback } from "react";
 import { toast } from "sonner";
-import type { Base64ContentBlock } from "@langchain/core/messages";
-import {
-  fileToContentBlock,
-  SUPPORTED_IMAGE_TYPES,
-} from "@/lib/multimodal-utils";
+import type { ExtendedContentBlock, UploadProgress, UploadResponse } from "@/types/broker-state";
+import { SUPPORTED_IMAGE_TYPES } from "@/lib/multimodal-utils";
+import { createUrlContentBlock } from "@/types/broker-state";
 
 interface UseFileUploadOptions {
-  initialBlocks?: Base64ContentBlock[];
+  initialBlocks?: ExtendedContentBlock[];
 }
 
 export function useFileUpload({
   initialBlocks = [],
 }: UseFileUploadOptions = {}) {
   const [contentBlocks, setContentBlocks] =
-    useState<Base64ContentBlock[]>(initialBlocks);
+    useState<ExtendedContentBlock[]>(initialBlocks);
+  const [uploadProgress, setUploadProgress] = useState<Map<string, UploadProgress>>(new Map());
   const dropRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const dragCounter = useRef(0);
 
-  const isDuplicate = (file: File, blocks: Base64ContentBlock[]) => {
+  const isDuplicate = (file: File, blocks: ExtendedContentBlock[]) => {
     if (SUPPORTED_IMAGE_TYPES.includes(file.type as any)) {
       return blocks.some(
         (b) =>
           b.type === "image" &&
-          b.metadata?.name === file.name &&
-          b.mime_type === file.type,
+          b.metadata?.originalName === file.name,
       );
     }
     return false;
+  };
+
+  // Upload file to S3 via API
+  const uploadFileToS3 = async (file: File): Promise<UploadResponse> => {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await fetch('/api/upload-image', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Upload failed');
+    }
+
+    return response.json();
   };
 
   const processFiles = useCallback(
@@ -57,11 +73,48 @@ export function useFileUpload({
         );
       }
 
-      if (uniqueFiles.length > 0) {
-        const newBlocks = await Promise.all(
-          uniqueFiles.map(fileToContentBlock),
-        );
-        setContentBlocks((prev) => [...prev, ...newBlocks]);
+      // Process uploads with progress tracking
+      for (const file of uniqueFiles) {
+        const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+        
+        // Initialize upload progress
+        setUploadProgress(prev => new Map(prev.set(fileId, {
+          file,
+          progress: 0,
+          status: 'uploading',
+        })));
+
+        try {
+          // Upload to S3
+          const uploadResponse = await uploadFileToS3(file);
+          
+          // Update progress to completed
+          setUploadProgress(prev => new Map(prev.set(fileId, {
+            file,
+            progress: 100,
+            status: 'completed',
+            result: uploadResponse,
+          })));
+
+          // Create URL content block and add to state
+          const urlBlock = createUrlContentBlock(uploadResponse, file);
+          setContentBlocks(prev => [...prev, urlBlock]);
+
+          toast.success(`Image "${file.name}" uploaded successfully`);
+
+        } catch (error) {
+          console.error('Upload error:', error);
+          
+          // Update progress to error
+          setUploadProgress(prev => new Map(prev.set(fileId, {
+            file,
+            progress: 0,
+            status: 'error',
+            error: error instanceof Error ? error.message : 'Upload failed',
+          })));
+
+          toast.error(`Failed to upload "${file.name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
       }
     },
     [contentBlocks],
@@ -159,8 +212,6 @@ export function useFileUpload({
     setContentBlocks((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const resetBlocks = () => setContentBlocks([]);
-
   /**
    * Handle paste event for files (images, PDFs)
    * Can be used as onPaste={handlePaste} on a textarea or input
@@ -186,14 +237,33 @@ export function useFileUpload({
     await processFiles(files);
   };
 
+  // Clean up completed upload progress
+  const cleanupUploadProgress = () => {
+    setUploadProgress(prev => {
+      const newMap = new Map(prev);
+      for (const [key, progress] of newMap) {
+        if (progress.status === 'completed') {
+          newMap.delete(key);
+        }
+      }
+      return newMap;
+    });
+  };
+
   return {
     contentBlocks,
     setContentBlocks,
     handleFileUpload,
     dropRef,
     removeBlock,
-    resetBlocks,
+    resetBlocks: () => {
+      setContentBlocks([]);
+      setUploadProgress(new Map());
+    },
     dragOver,
     handlePaste,
+    uploadProgress,
+    cleanupUploadProgress,
+    isUploading: Array.from(uploadProgress.values()).some(p => p.status === 'uploading'),
   };
 }

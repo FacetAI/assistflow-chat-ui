@@ -6,6 +6,7 @@ import { BranchSwitcher, CommandBar } from "./shared";
 import { MarkdownText } from "../markdown-text";
 import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
 import { cn } from "@/lib/utils";
+import type { BrokerState } from "@/types/broker-state";
 import { ToolExecutionAnimation } from "./tool-calls";
 import { MessageContentComplex } from "@langchain/core/messages";
 import { Fragment } from "react/jsx-runtime";
@@ -14,32 +15,30 @@ import { ThreadView } from "../agent-inbox";
 import { GenericInterruptView } from "./generic-interrupt";
 import { useArtifact } from "../artifact";
 
-// BrokerState interface to match the provided structure
-interface BrokerState {
-  messages?: any[];
-  image_prompt?: string;
-  image_url?: string;
+// Legacy BrokerState interface for backwards compatibility
+interface LegacyBrokerState extends BrokerState {
   base64_image?: string;
   video_url?: string;
   prompt?: string;
   interaction_count?: number;
   is_complete?: boolean;
   validation_score?: number;
-  features?: Record<string, any>;
 }
 
 function BrokerStateMedia({ values }: { values: any }) {
-  const brokerState = values as BrokerState;
+  const brokerState = values as LegacyBrokerState;
 
   if (!brokerState) return null;
 
   const imageUrl = brokerState.image_url;
-  const base64Image = brokerState.base64_image;
-  const videoUrl = brokerState.video_url;
+  const userReferenceUrl = brokerState.user_reference_url;
+  // Legacy support for existing base64_image field
+  const base64Image = (brokerState as any).base64_image;
+  const videoUrl = (brokerState as any).video_url;
 
   return (
     <div className="mt-2 flex flex-col gap-2">
-      {/* Render image from URL */}
+      {/* Render main generated image from URL */}
       {imageUrl && (
         <div className="max-w-md">
           <img
@@ -54,13 +53,34 @@ function BrokerStateMedia({ values }: { values: any }) {
           />
           {brokerState.image_prompt && (
             <p className="mt-1 text-sm text-gray-600 italic">
-              {brokerState.image_prompt}
+              Prompt: {brokerState.image_prompt}
             </p>
           )}
         </div>
       )}
 
-      {/* Render base64 image */}
+      {/* Render user reference image */}
+      {userReferenceUrl && (
+        <div className="max-w-md">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              Reference Image
+            </span>
+          </div>
+          <img
+            src={userReferenceUrl}
+            alt="User reference image"
+            className="w-full rounded-lg border border-gray-300 shadow-sm opacity-75"
+            loading="lazy"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = "none";
+            }}
+          />
+        </div>
+      )}
+
+      {/* Legacy: Render base64 image (for backwards compatibility) */}
       {base64Image && !imageUrl && (
         <div className="max-w-md">
           <img
@@ -85,7 +105,7 @@ function BrokerStateMedia({ values }: { values: any }) {
         </div>
       )}
 
-      {/* Render video */}
+      {/* Legacy: Render video */}
       {videoUrl && (
         <div className="max-w-md">
           <video

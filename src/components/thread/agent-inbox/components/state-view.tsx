@@ -230,6 +230,7 @@ export function StateViewObject(props: StateViewProps) {
             <ImageRenderer
               src={props.value}
               alt={`Image: ${props.keyName}`}
+              messageId={`state-${props.keyName}`}
             />
           ) : (
             <StateViewRecursive

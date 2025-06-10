@@ -33,6 +33,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { Label } from "../ui/label";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { ContentBlocksPreview } from "./ContentBlocksPreview";
+import { isUrlContentBlock } from "@/types/broker-state";
 import {
   useArtifactOpen,
   ArtifactContent,
@@ -165,31 +166,58 @@ export function Thread() {
       return;
     setFirstTokenReceived(false);
 
+    // Extract URL-based images for user_reference_url and include as content blocks
+    const urlImageBlocks = contentBlocks.filter(isUrlContentBlock);
+    const nonImageContentBlocks = contentBlocks.filter((block) => block.type !== "image");
+    
+    // Create image content blocks using Anthropic format
+    const imageContentBlocks = urlImageBlocks.map((block) => ({
+      type: "image",
+      source: {
+        type: "url",
+        url: block.source.url,
+      },
+    }));
+
     const newHumanMessage: Message = {
       id: uuidv4(),
       type: "human",
       content: [
         ...(input.trim().length > 0 ? [{ type: "text", text: input }] : []),
-        ...contentBlocks,
+        ...nonImageContentBlocks,
+        ...imageContentBlocks,
       ] as Message["content"],
     };
 
     const toolMessages = ensureToolCallsHaveResponses(stream.messages);
 
-    const context =
-      Object.keys(artifactContext).length > 0 ? artifactContext : undefined;
+    // Build the submission data with user_reference_url in the main state
+    const submissionData: any = { messages: [...toolMessages, newHumanMessage] };
+    
+    // Add context if we have artifact context
+    if (Object.keys(artifactContext).length > 0) {
+      submissionData.context = artifactContext;
+    }
+    
+    // Add user_reference_url directly to the state if we have uploaded images
+    if (urlImageBlocks.length > 0) {
+      const firstImageUrl = urlImageBlocks[0].source.url;
+      submissionData.user_reference_url = firstImageUrl;
+      console.log('Sending user_reference_url:', firstImageUrl); // Debug log
+    }
 
     // Get user ID for metadata
     const userId = (session?.user as any)?.id;
 
     stream.submit(
-      { messages: [...toolMessages, newHumanMessage], context },
+      submissionData,
       {
         streamMode: ["values"],
         config: userId ? { configurable: { user_id: userId } } : undefined,
         optimisticValues: (prev) => ({
           ...prev,
-          context,
+          ...(submissionData.context && { context: submissionData.context }),
+          ...(submissionData.user_reference_url && { user_reference_url: submissionData.user_reference_url }),
           messages: [
             ...(prev.messages ?? []),
             ...toolMessages,

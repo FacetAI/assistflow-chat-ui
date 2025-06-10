@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ReactElement } from "react";
+import { useCachedImage } from "@/lib/image-cache";
 
 // Helper function to detect if a value looks like an image
 export function isImageValue(key: string, value: unknown): boolean {
@@ -43,12 +44,15 @@ export function ImageRenderer({
   src,
   alt,
   className,
+  messageId,
 }: {
   src: string;
   alt?: string;
   className?: string;
+  messageId?: string;
 }) {
   const [imageError, setImageError] = useState(false);
+  const { cachedUrl, isLoading } = useCachedImage(src, messageId);
 
   if (imageError) {
     return (
@@ -59,12 +63,21 @@ export function ImageRenderer({
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className="my-4 max-w-md rounded-lg border border-gray-200 bg-gray-100 p-4">
+        <p className="text-sm text-gray-600">Loading image...</p>
+      </div>
+    );
+  }
+
   return (
     <div className={`my-4 ${className || ""}`}>
       <img
-        src={src}
+        src={cachedUrl || src}
         alt={alt || "Generated image"}
         className="max-h-96 max-w-full rounded-lg border border-gray-200 shadow-sm"
+        style={{ width: "auto", height: "auto" }}
         onError={() => setImageError(true)}
         loading="lazy"
       />
@@ -73,7 +86,7 @@ export function ImageRenderer({
 }
 
 // Function to extract and render images from structured data
-export function extractAndRenderImages(content: string): {
+export function extractAndRenderImages(content: string, messageId?: string): {
   hasImages: boolean;
   component: ReactElement | null;
 } {
@@ -108,6 +121,7 @@ export function extractAndRenderImages(content: string): {
                 <ImageRenderer
                   src={src}
                   alt={`Image: ${key}`}
+                  messageId={messageId}
                 />
               </div>
             ))}
@@ -134,6 +148,7 @@ export function extractAndRenderImages(content: string): {
               key={index}
               src={src}
               alt={`Image ${index + 1}`}
+              messageId={messageId}
             />
           ))}
         </div>

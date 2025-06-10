@@ -27,6 +27,17 @@ export const authOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        // Local development mode - bypass Cognito authentication
+        if (process.env.LOCAL_DEV_MODE === 'true') {
+          console.log('🔧 Local dev mode: bypassing Cognito authentication');
+          return {
+            id: process.env.LOCAL_DEV_USER_ID || 'local-dev-user',
+            email: process.env.LOCAL_DEV_USER_EMAIL || 'dev@localhost',
+            name: process.env.LOCAL_DEV_USER_NAME || 'Local Developer',
+            accessToken: 'local-dev-token',
+          };
+        }
+
         if (!credentials?.email || !credentials?.password) {
           return null;
         }

@@ -9,6 +9,11 @@ export default withAuth(
   {
     callbacks: {
       authorized: ({ token, req }) => {
+        // Local development mode - bypass all auth checks
+        if (process.env.LOCAL_DEV_MODE === 'true') {
+          return true;
+        }
+
         // Allow access to auth pages without token
         if (req.nextUrl.pathname.startsWith("/auth/")) {
           return true;

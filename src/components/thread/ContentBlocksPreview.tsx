@@ -1,13 +1,14 @@
 import React from "react";
-import type { Base64ContentBlock } from "@langchain/core/messages";
+import type { ExtendedContentBlock } from "@/types/broker-state";
 import { MultimodalPreview } from "./MultimodalPreview";
 import { cn } from "@/lib/utils";
 
 interface ContentBlocksPreviewProps {
-  blocks: Base64ContentBlock[];
+  blocks: ExtendedContentBlock[];
   onRemove: (idx: number) => void;
   size?: "sm" | "md" | "lg";
   className?: string;
+  messageId?: string;
 }
 
 /**
@@ -19,6 +20,7 @@ export const ContentBlocksPreview: React.FC<ContentBlocksPreviewProps> = ({
   onRemove,
   size = "md",
   className,
+  messageId,
 }) => {
   if (!blocks.length) return null;
   return (
@@ -30,6 +32,7 @@ export const ContentBlocksPreview: React.FC<ContentBlocksPreviewProps> = ({
           removable
           onRemove={() => onRemove(idx)}
           size={size}
+          messageId={messageId}
         />
       ))}
     </div>
