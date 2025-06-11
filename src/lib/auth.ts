@@ -7,6 +7,9 @@ import {
 } from "@aws-sdk/client-cognito-identity-provider"
 import crypto from "crypto"
 
+// Check if we're in local development mode
+const isLocalDev = process.env.LOCAL_DEV_MODE === "true";
+
 const cognitoClient = new CognitoIdentityProviderClient({
   region: "eu-west-1",
 })
@@ -39,6 +42,19 @@ export const authOptions: AuthOptions = {
 
         if (!credentials?.email || !credentials?.password) {
           return null
+        }
+
+        // Local development mode - bypass Cognito
+        if (isLocalDev) {
+          console.log("🔧 Local development mode: bypassing Cognito authentication");
+          
+          // Accept any credentials for local development
+          return {
+            id: process.env.LOCAL_DEV_USER_ID || "local-dev-user",
+            email: process.env.LOCAL_DEV_USER_EMAIL || credentials.email,
+            name: process.env.LOCAL_DEV_USER_NAME || "Local Developer",
+            accessToken: "local-dev-token",
+          };
         }
 
         try {
@@ -99,6 +115,8 @@ export const authOptions: AuthOptions = {
   pages: {
     signIn: "/auth/signin",
   },
+  debug: process.env.NODE_ENV === "development",
+  useSecureCookies: process.env.NODE_ENV === "production",
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -117,6 +135,14 @@ export const authOptions: AuthOptions = {
         session.accessToken = token.accessToken
       }
       return session
+    },
+    async redirect({ url, baseUrl }: any) {
+      console.log("Redirect callback - url:", url, "baseUrl:", baseUrl);
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Allows callback URLs on the same origin
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,

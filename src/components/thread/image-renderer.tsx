@@ -82,6 +82,11 @@ export function ImageRenderer({
         onError={() => setImageError(true)}
         loading="lazy"
       />
+      {contentBlock?.metadata?.size && (
+        <p className="mt-2 text-xs text-gray-500">
+          {contentBlock.metadata.name} ({(contentBlock.metadata.size / 1024 / 1024).toFixed(1)}MB)
+        </p>
+      )}
     </div>
   );
 }

@@ -2,6 +2,18 @@ import type { Base64ContentBlock } from "@langchain/core/messages";
 import type { ExtendedContentBlock } from "@/types/broker-state";
 import { toast } from "sonner";
 
+// Extended content block type that supports both base64 and URL sources
+export interface ExtendedContentBlock extends Omit<Base64ContentBlock, 'source_type'> {
+  source_type: "base64" | "url";
+  metadata?: {
+    name?: string;
+    size?: number;
+    lastModified?: number;
+    isObjectUrl?: boolean;
+    resized?: boolean;
+  };
+}
+
 // Image types supported by LangGraph platforms
 export const SUPPORTED_IMAGE_TYPES = [
   "image/jpeg",
@@ -10,7 +22,9 @@ export const SUPPORTED_IMAGE_TYPES = [
   "image/webp",
 ] as const;
 
-// Maximum file size for images (10MB)
+// Maximum file size for direct embedding (500KB - conservative to avoid 413 errors)
+const MAX_EMBEDDED_SIZE = 500 * 1024;
+// Maximum file size for images (10MB - AWS API Gateway safe limit)
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
 // Utility function to get image source from any content block type
@@ -23,18 +37,19 @@ export function getImageSrc(block: ExtendedContentBlock): string {
   return "";
 }
 
-// Type guard for Base64ContentBlock (images only)
-export function isBase64ContentBlock(
+// Type guard for ContentBlock (images - both base64 and URL)
+export function isImageContentBlock(
   block: unknown,
-): block is Base64ContentBlock {
+): block is ExtendedContentBlock {
   if (typeof block !== "object" || block === null || !("type" in block))
     return false;
 
-  // Only validate image type blocks following LangGraph standards
+  // Validate image type blocks following LangGraph standards
   return (
     (block as { type: unknown }).type === "image" &&
     "source_type" in block &&
-    (block as { source_type: unknown }).source_type === "base64" &&
+    ((block as { source_type: unknown }).source_type === "base64" ||
+     (block as { source_type: unknown }).source_type === "url") &&
     "mime_type" in block &&
     typeof (block as { mime_type?: unknown }).mime_type === "string" &&
     (block as { mime_type: string }).mime_type.startsWith("image/") &&

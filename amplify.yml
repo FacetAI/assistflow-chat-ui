@@ -7,6 +7,17 @@ frontend:
         - pnpm install --frozen-lockfile
     build:
       commands:
+        # Create .env.production file for SSR and API routes
+        - echo "# Environment variables for SSR and API routes" > .env.production
+        - echo "LANGGRAPH_API_URL=$LANGGRAPH_API_URL" >> .env.production
+        - echo "LANGSMITH_API_KEY=$LANGSMITH_API_KEY" >> .env.production
+        - echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL" >> .env.production
+        - echo "NEXT_PUBLIC_ASSISTANT_ID=$NEXT_PUBLIC_ASSISTANT_ID" >> .env.production
+        - echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" >> .env.production
+        - echo "NEXTAUTH_URL=$NEXTAUTH_URL" >> .env.production
+        - echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> .env.production
+        - echo "COGNITO_CLIENT_SECRET=$COGNITO_CLIENT_SECRET" >> .env.production
+        - echo "COGNITO_ISSUER=$COGNITO_ISSUER" >> .env.production
         - pnpm run build
   artifacts:
     baseDirectory: .next
@@ -17,3 +28,18 @@ frontend:
       - node_modules/**/*
       - .next/cache/**/*
       - .pnpm-store/**/*
+      - ~/.pnpm-store/**/*
+      - .eslintcache
+env:
+  variables:
+    # Enable diff-based deployments for faster builds
+    AMPLIFY_DIFF_DEPLOY: true
+    # Enable Next.js build cache
+    NEXT_CACHE: true
+    # Optimize pnpm for CI
+    PNPM_CACHE_FOLDER: .pnpm-store
+    # Skip telemetry for faster builds
+    NEXT_TELEMETRY_DISABLED: 1
+    # Ensure environment variables are available during build
+    LANGGRAPH_API_URL: $LANGGRAPH_API_URL
+    LANGSMITH_API_KEY: $LANGSMITH_API_KEY

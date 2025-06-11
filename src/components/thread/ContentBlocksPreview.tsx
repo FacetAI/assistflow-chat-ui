@@ -2,6 +2,7 @@ import React from "react";
 import type { ExtendedContentBlock } from "@/types/broker-state";
 import { MultimodalPreview } from "./MultimodalPreview";
 import { cn } from "@/lib/utils";
+import type { ExtendedContentBlock } from "@/lib/multimodal-utils";
 
 interface ContentBlocksPreviewProps {
   blocks: ExtendedContentBlock[];

@@ -10,8 +10,7 @@ import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export default function DemoPage(): React.ReactNode {
-  const { status } = useSession();
-  const router = useRouter();
+  const { data: session, status } = useSession();
 
   // Auto-login in local dev mode
   useEffect(() => {

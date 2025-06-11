@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn, getSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,33 +10,32 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FacetAILogoSVG } from "@/components/icons/facetai";
 import { toast } from "sonner";
 
-export default function SignIn() {
+function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
 
-  useEffect(() => {
-    // Check if user is already signed in
-    getSession().then((session) => {
-      if (session) {
-        router.push("/");
-      }
-    });
-  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      console.log("Attempting sign-in with callbackUrl:", callbackUrl);
       const result = await signIn("credentials", {
-        email,
-        password,
+        email: email,
+        password: password,
         redirect: false,
+        callbackUrl: undefined,
       });
 
+      console.log("Sign-in result:", result);
+
       if (result?.error) {
+        console.error("Sign-in error:", result.error);
         toast.error("Invalid credentials", {
           description: "Please check your email and password.",
         });
@@ -44,8 +43,9 @@ export default function SignIn() {
         toast.success("Welcome to FacetAI!", {
           description: "You have been successfully signed in.",
         });
-        router.push("/");
-        router.refresh();
+        // For credentials provider, manually redirect after successful login
+        console.log("Successful login, redirecting to:", callbackUrl);
+        router.push(callbackUrl);
       }
     } catch (error) {
       console.error("Sign in error:", error);
@@ -70,6 +70,16 @@ export default function SignIn() {
           <p className="text-muted-foreground">
             Access your intelligent chat interface
           </p>
+          {process.env.NEXT_PUBLIC_LOCAL_DEV_MODE === "true" && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-yellow-800 text-sm font-medium">
+                🔧 Local Development Mode
+              </p>
+              <p className="text-yellow-700 text-xs mt-1">
+                Any email/password will work for authentication
+              </p>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <form
@@ -111,10 +121,34 @@ export default function SignIn() {
           </form>
 
           <div className="text-muted-foreground mt-6 text-center text-sm">
-            Secure authentication powered by Amazon Cognito
+            {process.env.NEXT_PUBLIC_LOCAL_DEV_MODE === "true" 
+              ? "Local Development Mode - Authentication Bypassed"
+              : "Secure authentication powered by Amazon Cognito"
+            }
           </div>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function SignIn() {
+  return (
+    <Suspense fallback={
+      <div className="from-background via-background to-primary/5 flex min-h-screen items-center justify-center bg-gradient-to-br p-4">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardHeader className="space-y-4 text-center">
+            <div className="mx-auto">
+              <FacetAILogoSVG className="text-primary h-12 w-12" />
+            </div>
+            <CardTitle className="text-2xl font-semibold">
+              Loading...
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    }>
+      <SignInForm />
+    </Suspense>
   );
 }

@@ -127,6 +127,17 @@ function ThreadList({
           </div>
         );
       })}
+      {hasMoreThreads && (
+        <div className="w-full px-1">
+          <Button
+            variant="outline"
+            className="w-[280px]"
+            onClick={onLoadMore}
+          >
+            Load More
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -154,7 +165,7 @@ export default function ThreadHistory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
-  const { getThreads, threads, setThreads, threadsLoading, setThreadsLoading } =
+  const { getThreads, loadMoreThreads, threads, setThreads, threadsLoading, setThreadsLoading, hasMoreThreads } =
     useThreads();
 
   const searchManager = useMemo(() => new ThreadSearchManager(), []);

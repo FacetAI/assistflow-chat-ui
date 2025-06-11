@@ -96,6 +96,7 @@ export function Thread() {
     parseAsBoolean.withDefault(false),
   );
   const [input, setInput] = useState("");
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
   const {
     contentBlocks,
     setContentBlocks,
@@ -163,9 +164,9 @@ export function Thread() {
     prevMessageLength.current = messages.length;
   }, [messages]);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if ((input.trim().length === 0 && contentBlocks.length === 0) || isLoading)
+    if ((input.trim().length === 0 && contentBlocks.length === 0) || isLoading || isProcessingImages)
       return;
     setFirstTokenReceived(false);
 
@@ -230,8 +231,16 @@ export function Thread() {
       },
     );
 
-    setInput("");
-    setContentBlocks([]);
+      setInput("");
+      setContentBlocks([]);
+    } catch (error) {
+      console.error("Failed to submit message:", error);
+      toast.error("Failed to send message", {
+        description: "There was an error processing your images. Please try again.",
+      });
+    } finally {
+      setIsProcessingImages(false);
+    }
   };
 
   const handleRegenerate = (
@@ -529,10 +538,18 @@ export function Thread() {
                               className="ml-auto shadow-md transition-all"
                               disabled={
                                 isLoading ||
+                                isProcessingImages ||
                                 (!input.trim() && contentBlocks.length === 0)
                               }
                             >
-                              Send
+                              {isProcessingImages ? (
+                                <>
+                                  <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
+                                  Processing images...
+                                </>
+                              ) : (
+                                "Send"
+                              )}
                             </Button>
                           )}
                         </div>

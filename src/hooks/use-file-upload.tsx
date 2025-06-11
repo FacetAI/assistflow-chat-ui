@@ -209,7 +209,16 @@ export function useFileUpload({
   }, [processFiles]);
 
   const removeBlock = (idx: number) => {
-    setContentBlocks((prev) => prev.filter((_, i) => i !== idx));
+    setContentBlocks((prev) => {
+      const blockToRemove = prev[idx];
+      // Clean up object URL if it exists
+      if (blockToRemove?.source_type === "url" && 
+          blockToRemove.metadata?.isObjectUrl && 
+          blockToRemove.data.startsWith('blob:')) {
+        URL.revokeObjectURL(blockToRemove.data);
+      }
+      return prev.filter((_, i) => i !== idx);
+    });
   };
 
   /**
