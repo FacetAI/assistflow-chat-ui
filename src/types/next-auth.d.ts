@@ -1,25 +1,20 @@
+import "next-auth"
+
 declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string; // Cognito sub attribute (UUID)
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-    };
-    accessToken?: string;
+  interface User {
+    id: string
+    accessToken?: string
   }
 
-  interface User {
-    id: string; // Cognito sub attribute (UUID)
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
+  interface Session {
+    user: User
+    accessToken?: string
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    id: string;
-    accessToken?: string;
+    id: string
+    accessToken?: string
   }
 }

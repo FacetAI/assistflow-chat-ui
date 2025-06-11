@@ -1,24 +1,24 @@
-import CredentialsProvider from "next-auth/providers/credentials";
+import { type AuthOptions } from "next-auth"
+import CredentialsProvider from "next-auth/providers/credentials"
 import {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
   GetUserCommand,
-} from "@aws-sdk/client-cognito-identity-provider";
-import crypto from "crypto";
+} from "@aws-sdk/client-cognito-identity-provider"
+import crypto from "crypto"
 
 const cognitoClient = new CognitoIdentityProviderClient({
   region: "eu-west-1",
-});
+})
 
-// Generate secret hash required by Cognito
 function generateSecretHash(username: string): string {
-  const message = username + process.env.COGNITO_CLIENT_ID!;
-  const hash = crypto.createHmac("sha256", process.env.COGNITO_CLIENT_SECRET!);
-  hash.update(message);
-  return hash.digest("base64");
+  const message = username + process.env.COGNITO_CLIENT_ID!
+  const hash = crypto.createHmac("sha256", process.env.COGNITO_CLIENT_SECRET!)
+  hash.update(message)
+  return hash.digest("base64")
 }
 
-export const authOptions = {
+export const authOptions: AuthOptions = {
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -27,77 +27,68 @@ export const authOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // Local development mode - bypass Cognito authentication
         if (process.env.LOCAL_DEV_MODE === 'true') {
-          console.log('🔧 Local dev mode: bypassing Cognito authentication');
+          console.log('🔧 Local dev mode: bypassing Cognito authentication')
           return {
             id: process.env.LOCAL_DEV_USER_ID || 'local-dev-user',
             email: process.env.LOCAL_DEV_USER_EMAIL || 'dev@localhost',
             name: process.env.LOCAL_DEV_USER_NAME || 'Local Developer',
             accessToken: 'local-dev-token',
-          };
+          }
         }
 
         if (!credentials?.email || !credentials?.password) {
-          return null;
+          return null
         }
 
         try {
-          // Authenticate with Cognito
-          const authParameters: any = {
+          const authParameters: Record<string, string> = {
             USERNAME: credentials.email,
             PASSWORD: credentials.password,
-          };
+          }
 
-          // Only add SECRET_HASH if client secret is available
           if (process.env.COGNITO_CLIENT_SECRET) {
-            authParameters.SECRET_HASH = generateSecretHash(credentials.email);
+            authParameters.SECRET_HASH = generateSecretHash(credentials.email)
           }
 
           const authCommand = new InitiateAuthCommand({
             AuthFlow: "USER_PASSWORD_AUTH",
             ClientId: process.env.COGNITO_CLIENT_ID!,
             AuthParameters: authParameters,
-          });
+          })
 
-          const authResponse = await cognitoClient.send(authCommand);
+          const authResponse = await cognitoClient.send(authCommand)
 
           if (!authResponse.AuthenticationResult?.AccessToken) {
-            return null;
+            return null
           }
 
-          // Get user information
           const getUserCommand = new GetUserCommand({
             AccessToken: authResponse.AuthenticationResult.AccessToken,
-          });
+          })
 
-          const userResponse = await cognitoClient.send(getUserCommand);
+          const userResponse = await cognitoClient.send(getUserCommand)
 
-          const userAttributes = userResponse.UserAttributes || [];
-          const sub = userAttributes.find((attr) => attr.Name === "sub")?.Value;
-          const email = userAttributes.find(
-            (attr) => attr.Name === "email",
-          )?.Value;
-          const name =
-            userAttributes.find((attr) => attr.Name === "name")?.Value ||
+          const userAttributes = userResponse.UserAttributes || []
+          const sub = userAttributes.find((attr) => attr.Name === "sub")?.Value
+          const email = userAttributes.find((attr) => attr.Name === "email")?.Value
+          const name = userAttributes.find((attr) => attr.Name === "name")?.Value ||
             userAttributes.find((attr) => attr.Name === "given_name")?.Value ||
-            userAttributes.find((attr) => attr.Name === "family_name")?.Value;
+            userAttributes.find((attr) => attr.Name === "family_name")?.Value
 
           if (!sub) {
-            throw new Error("Unable to retrieve user UUID from Cognito");
+            throw new Error("Unable to retrieve user UUID from Cognito")
           }
 
-          const user = {
-            id: sub, // Always use Cognito sub (UUID) as the primary user identifier
+          return {
+            id: sub,
             email: email || credentials.email,
             name: name || email || credentials.email,
             accessToken: authResponse.AuthenticationResult.AccessToken,
-          };
-
-          return user;
+          }
         } catch (error) {
-          console.error("Cognito authentication error:", error);
-          return null;
+          console.error("Cognito authentication error:", error)
+          return null
         }
       },
     }),
@@ -109,24 +100,24 @@ export const authOptions = {
     signIn: "/auth/signin",
   },
   callbacks: {
-    async jwt({ token, user }: any) {
+    async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.email = user.email;
-        token.name = user.name;
-        token.accessToken = user.accessToken;
+        token.id = user.id
+        token.email = user.email
+        token.name = user.name
+        token.accessToken = user.accessToken
       }
-      return token;
+      return token
     },
-    async session({ session, token }: any) {
+    async session({ session, token }) {
       if (token) {
-        session.user.id = token.id;
-        session.user.email = token.email;
-        session.user.name = token.name;
-        session.accessToken = token.accessToken;
+        session.user.id = token.id
+        session.user.email = token.email
+        session.user.name = token.name
+        session.accessToken = token.accessToken
       }
-      return session;
+      return session
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
-};
+}

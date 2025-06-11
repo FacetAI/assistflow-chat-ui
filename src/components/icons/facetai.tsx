@@ -6,17 +6,26 @@ export function FacetAILogoSVG({
   width = 32,
   height = 32,
   className = "",
-  variant = "violet",
+  variant,
 }: {
   width?: number;
   height?: number;
   className?: string;
   variant?: "violet" | "black" | "white";
 }) {
+  const { theme, resolvedTheme } = useTheme();
+
+  // Auto-select variant based on theme if not explicitly provided
+  const effectiveVariant =
+    variant ||
+    (resolvedTheme === "dark" || theme === "dark"
+      ? "white"
+      : "violet");
+
   const logoSrc =
-    variant === "violet"
+    effectiveVariant === "violet"
       ? "/Logo/SVG/Violet icon.svg"
-      : variant === "black"
+      : effectiveVariant === "black"
         ? "/Logo/SVG/Black icon.svg"
         : "/Logo/SVG/Whte Icon.svg";
 
@@ -58,7 +67,7 @@ export function FacetAITextLogoSVG({
       : effectiveVariant === "violet-white"
         ? "/Logo + right text/SVG/Icon Violet Text White Right.svg"
         : effectiveVariant === "black"
-          ? "/Logo + right text/SVG/Icon black Text Black Right.svg"
+          ? "/Logo + right text/SVG/Icon white Text white Right.svg"
           : "/Logo + right text/SVG/Icon white Text white Right.svg";
 
   return (

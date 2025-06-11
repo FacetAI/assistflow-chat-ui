@@ -15,7 +15,8 @@ interface CachedImage {
 const DB_NAME = 'AssistFlowImageCache';
 const DB_VERSION = 1;
 const STORE_NAME = 'images';
-const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days
+const CACHE_EXPIRY = 30 * 24 * 60 * 60 * 1000; // 30 days
+const MAX_CACHE_SIZE = 100; // Maximum number of cached images
 
 class ImageCacheManager {
   private db: IDBDatabase | null = null;
@@ -53,8 +54,12 @@ class ImageCacheManager {
       // Check if already cached
       const cached = await this.getCachedImage(url);
       if (cached) {
+        await this.updateTimestamp(url);
         return cached;
       }
+
+      // Check cache size and clean if necessary
+      await this.manageCacheSize();
 
       // Fetch and cache the image
       const response = await fetch(url);
@@ -126,6 +131,56 @@ class ImageCacheManager {
       store.delete(url);
     } catch (error) {
       console.warn('Failed to remove cached image:', error);
+    }
+  }
+
+  async updateTimestamp(url: string): Promise<void> {
+    try {
+      await this.init();
+      if (!this.db) return;
+
+      const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      
+      const getRequest = store.get(url);
+      getRequest.onsuccess = () => {
+        const result = getRequest.result as CachedImage | undefined;
+        if (result) {
+          result.timestamp = Date.now();
+          store.put(result);
+        }
+      };
+    } catch (error) {
+      console.warn('Failed to update timestamp:', error);
+    }
+  }
+
+  async manageCacheSize(): Promise<void> {
+    try {
+      await this.init();
+      if (!this.db) return;
+
+      const count = await this.getCacheSize();
+      if (count < MAX_CACHE_SIZE) return;
+
+      const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const index = store.index('timestamp');
+
+      const deleteCount = Math.floor(MAX_CACHE_SIZE * 0.2); // Remove 20% of oldest entries
+      let deletedCount = 0;
+
+      const request = index.openCursor();
+      request.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest).result;
+        if (cursor && deletedCount < deleteCount) {
+          cursor.delete();
+          deletedCount++;
+          cursor.continue();
+        }
+      };
+    } catch (error) {
+      console.warn('Failed to manage cache size:', error);
     }
   }
 
@@ -266,27 +321,48 @@ export const imageCache = new ImageCacheManager();
 export function useCachedImage(url: string | null, messageId?: string) {
   const [cachedUrl, setCachedUrl] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!url) {
       setCachedUrl(null);
+      setError(null);
       return;
     }
 
     // If it's already a blob URL, use it directly
     if (url.startsWith('blob:') || url.startsWith('data:')) {
       setCachedUrl(url);
+      setError(null);
       return;
     }
 
     setIsLoading(true);
+    setError(null);
+    
     imageCache.cacheImage(url, messageId)
-      .then(setCachedUrl)
-      .catch(() => setCachedUrl(url)) // Fallback to original URL
+      .then((cachedImageUrl) => {
+        setCachedUrl(cachedImageUrl);
+        setError(null);
+      })
+      .catch((err) => {
+        console.warn('Failed to cache image:', err);
+        setCachedUrl(url); // Fallback to original URL
+        setError('Failed to cache image');
+      })
       .finally(() => setIsLoading(false));
   }, [url, messageId]);
 
-  return { cachedUrl, isLoading };
+  // Clean up blob URLs when component unmounts or URL changes
+  React.useEffect(() => {
+    return () => {
+      if (cachedUrl && cachedUrl.startsWith('blob:') && cachedUrl !== url) {
+        URL.revokeObjectURL(cachedUrl);
+      }
+    };
+  }, [cachedUrl, url]);
+
+  return { cachedUrl, isLoading, error };
 }
 
 // Clean up expired cache on app startup

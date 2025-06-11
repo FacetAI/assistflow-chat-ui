@@ -26,14 +26,16 @@ export const MultimodalPreview: React.FC<MultimodalPreviewProps> = ({
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
 
+  // Always call hooks at the top level
+  const imageSrc = block.type === "image" ? getImageSrc(block) : null;
+  const shouldUseCache = block.type === "image" && "source" in block && block.source && block.source.type === "url";
+  const { cachedUrl, isLoading: cacheLoading } = useCachedImage(
+    shouldUseCache ? imageSrc : null,
+    messageId
+  );
+
   // Image block - supporting both URL and base64 sources
   if (block.type === "image") {
-    const imageSrc = getImageSrc(block);
-    const shouldUseCache = "source" in block && block.source && block.source.type === "url";
-    const { cachedUrl, isLoading: cacheLoading } = useCachedImage(
-      shouldUseCache ? imageSrc : null,
-      messageId
-    );
     if (!imageSrc) {
       return (
         <div className={cn("relative inline-block", className)}>
@@ -92,7 +94,7 @@ export const MultimodalPreview: React.FC<MultimodalPreviewProps> = ({
           )}
           
           {/* Use Next.js Image for URL sources, regular img for base64 */}
-          {block.source_type === "url" ? (
+          {"source" in block && block.source?.type === "url" ? (
             <Image
               src={cachedUrl || imageSrc}
               alt={`${imageName} ${imageSize}`}

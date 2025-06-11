@@ -40,6 +40,9 @@ import {
   ArtifactTitle,
   useArtifactContext,
 } from "./artifact";
+import { SupportOverlayComponent } from "@/components/support-overlay";
+import { FeedbackSystem } from "@/components/feedback-system";
+import { ErrorBoundary, SupportErrorFallback, FeedbackErrorFallback } from "@/components/error-boundary";
 
 function StickyToBottomContent(props: {
   content: ReactNode;
@@ -262,7 +265,7 @@ export function Thread() {
       <div className="flex flex-1 overflow-hidden">
         <div className="relative hidden lg:flex">
           <motion.div
-            className="absolute z-20 h-full overflow-hidden border-r bg-white"
+            className="absolute z-20 h-full overflow-hidden border-r bg-background"
             style={{ width: 300 }}
             animate={
               isLargeScreen
@@ -316,7 +319,7 @@ export function Thread() {
                 <div>
                   {(!chatHistoryOpen || !isLargeScreen) && (
                     <Button
-                      className="hover:bg-gray-100"
+                      className="hover:bg-accent"
                       variant="ghost"
                       onClick={() => setChatHistoryOpen((p) => !p)}
                     >
@@ -335,7 +338,7 @@ export function Thread() {
                 <div className="flex items-center gap-2">
                   {(!chatHistoryOpen || !isLargeScreen) && (
                     <Button
-                      className="hover:bg-gray-100"
+                      className="hover:bg-accent"
                       variant="ghost"
                       onClick={() => setChatHistoryOpen((p) => !p)}
                     >
@@ -370,7 +373,7 @@ export function Thread() {
                       width={32}
                       height={32}
                     />
-                    <span className="text-muted-foreground text-sm">
+                    <span className="text-sm text-muted-foreground">
                       FacetAI Chat
                     </span>
                   </motion.button>
@@ -432,6 +435,11 @@ export function Thread() {
                     )}
                     {isLoading && !firstTokenReceived && (
                       <AssistantMessageLoading />
+                    )}
+                    {!isLoading && chatStarted && (
+                      <ErrorBoundary fallback={<FeedbackErrorFallback />}>
+                        <FeedbackSystem className="mt-8 justify-center" />
+                      </ErrorBoundary>
                     )}
                   </>
                 }
@@ -551,6 +559,9 @@ export function Thread() {
           </div>
         </div>
       </div>
+      <ErrorBoundary fallback={<SupportErrorFallback />}>
+        <SupportOverlayComponent />
+      </ErrorBoundary>
     </div>
   );
 }

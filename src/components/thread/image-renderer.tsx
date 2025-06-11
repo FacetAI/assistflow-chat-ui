@@ -52,13 +52,14 @@ export function ImageRenderer({
   messageId?: string;
 }) {
   const [imageError, setImageError] = useState(false);
-  const { cachedUrl, isLoading } = useCachedImage(src, messageId);
+  const { cachedUrl, isLoading, error } = useCachedImage(src, messageId);
 
-  if (imageError) {
+  if (imageError || error) {
     return (
-      <div className="my-4 max-w-md rounded-lg border border-gray-200 bg-gray-100 p-4">
-        <p className="text-sm text-gray-600">Failed to load image</p>
-        <p className="mt-1 text-xs break-all text-gray-400">{src}</p>
+      <div className="my-4 max-w-md rounded-lg border bg-muted p-4">
+        <p className="text-sm text-muted-foreground">Failed to load image</p>
+        <p className="mt-1 text-xs break-all text-muted-foreground/70">{src}</p>
+        {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
       </div>
     );
   }

@@ -10,10 +10,13 @@ import type { BrokerState } from "@/types/broker-state";
 import { ToolExecutionAnimation } from "./tool-calls";
 import { MessageContentComplex } from "@langchain/core/messages";
 import { Fragment } from "react/jsx-runtime";
+import { useEffect } from "react";
 import { isAgentInboxInterruptSchema } from "@/lib/agent-inbox-interrupt";
 import { ThreadView } from "../agent-inbox";
 import { GenericInterruptView } from "./generic-interrupt";
 import { useArtifact } from "../artifact";
+import { messageImagePersistence } from "@/lib/message-image-persistence";
+import { PersistentMessageImages } from "../persistent-message-images";
 
 // Legacy BrokerState interface for backwards compatibility
 interface LegacyBrokerState extends BrokerState {
@@ -25,104 +28,27 @@ interface LegacyBrokerState extends BrokerState {
   validation_score?: number;
 }
 
-function BrokerStateMedia({ values }: { values: any }) {
+function BrokerStateMedia({ values, messageId }: { values: any; messageId?: string }) {
   const brokerState = values as LegacyBrokerState;
+
+  useEffect(() => {
+    if (!brokerState || !messageId) return;
+    
+    const hasMedia = !!(
+      brokerState.image_url || 
+      brokerState.user_reference_url || 
+      brokerState.base64_image || 
+      brokerState.video_url
+    );
+
+    if (hasMedia) {
+      messageImagePersistence.storeMessageImages(messageId, brokerState);
+    }
+  }, [brokerState, messageId]);
 
   if (!brokerState) return null;
 
-  const imageUrl = brokerState.image_url;
-  const userReferenceUrl = brokerState.user_reference_url;
-  // Legacy support for existing base64_image field
-  const base64Image = (brokerState as any).base64_image;
-  const videoUrl = (brokerState as any).video_url;
-
-  return (
-    <div className="mt-2 flex flex-col gap-2">
-      {/* Render main generated image from URL */}
-      {imageUrl && (
-        <div className="max-w-md">
-          <img
-            src={imageUrl}
-            alt={brokerState.image_prompt || "Generated image"}
-            className="w-full rounded-lg border border-gray-200 shadow-sm"
-            loading="lazy"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.display = "none";
-            }}
-          />
-          {brokerState.image_prompt && (
-            <p className="mt-1 text-sm text-gray-600 italic">
-              Prompt: {brokerState.image_prompt}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Render user reference image */}
-      {userReferenceUrl && (
-        <div className="max-w-md">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Reference Image
-            </span>
-          </div>
-          <img
-            src={userReferenceUrl}
-            alt="User reference image"
-            className="w-full rounded-lg border border-gray-300 shadow-sm opacity-75"
-            loading="lazy"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.display = "none";
-            }}
-          />
-        </div>
-      )}
-
-      {/* Legacy: Render base64 image (for backwards compatibility) */}
-      {base64Image && !imageUrl && (
-        <div className="max-w-md">
-          <img
-            src={
-              base64Image.startsWith("data:")
-                ? base64Image
-                : `data:image/png;base64,${base64Image}`
-            }
-            alt={brokerState.image_prompt || "Generated image"}
-            className="w-full rounded-lg border border-gray-200 shadow-sm"
-            loading="lazy"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.display = "none";
-            }}
-          />
-          {brokerState.image_prompt && (
-            <p className="mt-1 text-sm text-gray-600 italic">
-              {brokerState.image_prompt}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Legacy: Render video */}
-      {videoUrl && (
-        <div className="max-w-md">
-          <video
-            src={videoUrl}
-            controls
-            className="w-full rounded-lg border border-gray-200 shadow-sm"
-            onError={(e) => {
-              const target = e.target as HTMLVideoElement;
-              target.style.display = "none";
-            }}
-          >
-            Your browser does not support the video tag.
-          </video>
-        </div>
-      )}
-    </div>
-  );
+  return null;
 }
 
 function CustomComponent({
@@ -286,8 +212,11 @@ export function AssistantMessage({
               />
             )}
 
-            {/* Render BrokerState media content only for the last message */}
-            {isLastMessage && <BrokerStateMedia values={thread.values} />}
+            {/* Always render persistent images for this message */}
+            {message?.id && <PersistentMessageImages messageId={message.id} />}
+            
+            {/* Render BrokerState media content for the last message and store it */}
+            {isLastMessage && <BrokerStateMedia values={thread.values} messageId={message?.id} />}
             <Interrupt
               interruptValue={threadInterrupt?.value}
               isLastMessage={isLastMessage}
